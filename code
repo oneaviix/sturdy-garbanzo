@@ -1,0 +1,168 @@
+import React, { useState, useCallback } from 'react';
+import { Minus, Plus, Divide, X, Delete, RefreshCw, Equal } from 'lucide-react';
+
+// --- Calculator Constants ---
+
+// Defines the layout and appearance of all buttons
+const BUTTONS = [
+  { label: 'C', value: 'clear', className: 'col-span-1 bg-red-500 hover:bg-red-600 text-white' },
+  { label: 'DEL', value: 'delete', className: 'col-span-1 bg-red-400 hover:bg-red-500 text-white', icon: <Delete size={20} /> },
+  { label: '/', value: '/', className: 'col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white', icon: <Divide size={20} /> },
+  { label: '*', value: '*', className: 'col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white', icon: <X size={20} /> },
+  
+  { label: '7', value: '7' },
+  { label: '8', value: '8' },
+  { label: '9', value: '9' },
+  { label: '-', value: '-', className: 'col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white', icon: <Minus size={20} /> },
+
+  { label: '4', value: '4' },
+  { label: '5', value: '5' },
+  { label: '6', value: '6' },
+  { label: '+', value: '+', className: 'col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white', icon: <Plus size={20} /> },
+
+  { label: '1', value: '1' },
+  { label: '2', value: '2' },
+  { label: '3', value: '3' },
+  { label: '=', value: 'equals', className: 'row-span-2 bg-green-600 hover:bg-green-700 text-white font-bold text-2xl', icon: <Equal size={30} /> },
+
+  { label: '0', value: '0', className: 'col-span-2' },
+  { label: '.', value: '.' },
+];
+
+// --- Utility Function to Handle Calculation ---
+// Uses the built-in Function constructor to safely evaluate mathematical expressions.
+const calculateResult = (expression) => {
+  if (!expression) return '';
+  try {
+    // 1. Clean the expression: replace 'x' (Lucide icon label) with '*' for multiplication
+    const sanitizedExpression = expression.replace(/×/g, '*');
+
+    // 2. Use Function constructor for safe dynamic evaluation (more robust than eval)
+    // Note: This is generally safer than eval() for simple math expressions, 
+    // but still requires caution and rigorous input validation in production environments.
+    const result = new Function('return ' + sanitizedExpression)();
+
+    // 3. Round the result to a reasonable number of decimal places
+    if (result === Infinity || isNaN(result)) {
+      return 'Error';
+    }
+    return String(Math.round(result * 100000) / 100000); // 5 decimal places
+  } catch (e) {
+    return 'Error';
+  }
+};
+
+// --- Calculator Button Component ---
+const CalculatorButton = ({ label, value, className = '', icon, onClick }) => {
+  const baseClasses = 'p-4 rounded-xl text-2xl font-semibold transition duration-150 ease-in-out shadow-lg transform active:scale-95 flex items-center justify-center';
+  const colorClasses = 'bg-gray-200 text-gray-800 hover:bg-gray-300';
+  
+  return (
+    <button
+      className={`${baseClasses} ${colorClasses} ${className}`}
+      onClick={() => onClick(value)}
+    >
+      {icon ? icon : label}
+    </button>
+  );
+};
+
+// --- Main App Component ---
+const App = () => {
+  const [input, setInput] = useState(''); // What the user types (expression)
+  const [result, setResult] = useState(''); // The calculated result
+
+  // Handler for button clicks
+  const handleButtonClick = useCallback((value) => {
+    switch (value) {
+      case 'clear':
+        setInput('');
+        setResult('');
+        break;
+      
+      case 'delete':
+        if (input === result) {
+            setInput(''); // Clear input if it just displayed the last result
+        } else {
+            setInput(prev => prev.slice(0, -1));
+        }
+        break;
+
+      case 'equals':
+        // Calculate the result based on the current input expression
+        const finalResult = calculateResult(input);
+        setResult(finalResult);
+        setInput(finalResult === 'Error' ? '' : finalResult); // Set input to result after calculation
+        break;
+
+      default:
+        // Handle number, decimal, and operator inputs
+        setInput(prev => {
+          // Prevent multiple operators in a row
+          const lastChar = prev.slice(-1);
+          const isOperator = (char) => ['+', '-', '*', '/'].includes(char);
+          
+          if (isOperator(lastChar) && isOperator(value)) {
+            // Replace the last operator with the new one
+            return prev.slice(0, -1) + value;
+          }
+          
+          // Prevent multiple decimals in a single number
+          if (value === '.') {
+            const lastNumberMatch = prev.match(/(\d+\.?\d*)$/);
+            if (lastNumberMatch && lastNumberMatch[0].includes('.')) {
+              return prev; // Already a decimal point in the current number
+            }
+          }
+
+          // If the current input is a result from the last equals calculation, 
+          // and the new input is a number, start a new calculation.
+          if (input === result && !isOperator(value) && value !== '.') {
+            return value;
+          }
+          
+          // Otherwise, append the value
+          return prev + value;
+        });
+        break;
+    }
+  }, [input, result]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4 font-inter">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 border-4 border-indigo-100">
+        
+        {/* Title and User ID */}
+        <h1 className="text-3xl font-extrabold text-center text-indigo-700 mb-6">
+          React Calc
+        </h1>
+
+        {/* Display Area */}
+        <div className="bg-gray-800 p-5 rounded-2xl shadow-inner mb-6 h-32 flex flex-col justify-end text-right overflow-hidden">
+          <div className="text-xl text-gray-400 h-8 truncate mb-1">
+            {input === result && input !== '' && result !== 'Error' ? '' : input}
+          </div>
+          <div className="text-4xl text-white font-light h-10 truncate">
+            {result === '' ? input : result}
+          </div>
+        </div>
+
+        {/* Buttons Grid */}
+        <div className="grid grid-cols-4 grid-rows-5 gap-3 h-96">
+          {BUTTONS.map((button) => (
+            <CalculatorButton
+              key={button.value}
+              label={button.label}
+              value={button.value === '*' ? '×' : button.value} // Use '×' symbol for display
+              className={button.className}
+              icon={button.icon}
+              onClick={handleButtonClick}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
