@@ -1,0 +1,3 @@
+This is a great request! Building a resume often requires dynamic input and data persistence, so I will create a single-file React application using Tailwind CSS and Firebase Firestore for storage.
+
+This Resume Builder will allow the user to input their sections (Summary, Experience, Education, Skills) and save them to the database. It will then render a clean, professional resume preview that is responsive and ready for display.
